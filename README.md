@@ -155,7 +155,16 @@ SMTP_PASS=your_email_auth_code
 FRONTEND_URL=http://localhost:5173
 ```
 
-4. 运行开发服务器：
+4. 创建管理员账户：
+```bash
+npm run create-admin
+```
+默认管理员账户信息：
+- 用户名：admin
+- 密码：admin123456
+- 邮箱：admin@flowmind.ai
+
+5. 运行开发服务器：
 ```bash
 npm run dev
 ```

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { User } from '../models/user.model';
+import { User, UserRole } from '../models/user.model';
 import { validateEmail } from '../utils/validators';
 
 export const register = async (req: Request, res: Response) => {
@@ -28,6 +28,7 @@ export const register = async (req: Request, res: Response) => {
       username,
       email,
       password: hashedPassword,
+      role: UserRole.USER // 设置默认角色为普通用户
     });
 
     await user.save();
@@ -47,6 +48,7 @@ export const register = async (req: Request, res: Response) => {
           id: user._id,
           username: user.username,
           email: user.email,
+          role: user.role
         },
       },
     });
@@ -87,6 +89,7 @@ export const login = async (req: Request, res: Response) => {
           id: user._id,
           username: user.username,
           email: user.email,
+          role: user.role
         },
       },
     });
