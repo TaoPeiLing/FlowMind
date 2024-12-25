@@ -21,4 +21,10 @@ router.delete('/:id', modelProviderController.deleteProvider);
 // 测试连接
 router.post('/test-connection', modelProviderController.testConnection);
 
-export default router; 
+// 更新模型状态
+router.patch('/:providerId/models/:modelCode', modelProviderController.updateModelStatus);
+
+// 更新全局模型状态
+router.patch('/global-status', modelProviderController.updateGlobalModelStatus);
+
+export default router;

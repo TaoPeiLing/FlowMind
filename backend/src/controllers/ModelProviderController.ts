@@ -14,6 +14,8 @@ class ModelProviderController {
     this.updateProvider = this.updateProvider.bind(this);
     this.deleteProvider = this.deleteProvider.bind(this);
     this.testConnection = this.testConnection.bind(this);
+    this.updateModelStatus = this.updateModelStatus.bind(this);
+    this.updateGlobalModelStatus = this.updateGlobalModelStatus.bind(this);
   }
 
   public static getInstance(): ModelProviderController {
@@ -76,10 +78,7 @@ class ModelProviderController {
   // 删除供应商
   async deleteProvider(req: Request, res: Response) {
     try {
-      const success = await this.service.deleteProvider(req.params.id);
-      if (!success) {
-        return res.status(404).json({ error: '供应商不存在' });
-      }
+      await this.service.deleteProvider(req.params.id);
       res.status(204).send();
     } catch (error) {
       console.error('Error in deleteProvider:', error);
@@ -90,22 +89,43 @@ class ModelProviderController {
   // 测试连接
   async testConnection(req: Request, res: Response) {
     try {
-      const { baseUrl, apiKey, message } = req.body;
-      const result = await this.service.testConnection({
-        baseUrl,
-        apiKey,
-        message
-      });
+      const result = await this.service.testConnection(req.body);
       res.json(result);
     } catch (error) {
       console.error('Error in testConnection:', error);
-      res.status(500).json({ 
-        success: false,
-        message: '测试连接失败',
-        error: error instanceof Error ? error.message : '未知错误'
-      });
+      res.status(500).json({ error: '测试连接失败' });
+    }
+  }
+
+  // 更新模型状态
+  async updateModelStatus(req: Request, res: Response) {
+    try {
+      const { providerId, modelCode } = req.params;
+      const { isEnabled } = req.body;
+      
+      const result = await this.service.updateModelStatus(providerId, modelCode, isEnabled);
+      if (!result) {
+        return res.status(404).json({ error: '模型不存在' });
+      }
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error in updateModelStatus:', error);
+      res.status(500).json({ error: '更新模型状态失败' });
+    }
+  }
+
+  // 更新全局模型状态
+  async updateGlobalModelStatus(req: Request, res: Response) {
+    try {
+      const { isEnabled } = req.body;
+      const result = await this.service.updateGlobalModelStatus(isEnabled);
+      res.json(result);
+    } catch (error) {
+      console.error('Error in updateGlobalModelStatus:', error);
+      res.status(500).json({ error: '更新全局模型状态失败' });
     }
   }
 }
 
-export const modelProviderController = ModelProviderController.getInstance(); 
+export const modelProviderController = ModelProviderController.getInstance();

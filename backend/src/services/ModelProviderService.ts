@@ -179,4 +179,36 @@ export class ModelProviderService {
       };
     }
   }
+
+  // 更新模型状态
+  async updateModelStatus(providerId: string, modelCode: string, isEnabled: boolean): Promise<IModelProvider | null> {
+    const provider = await ModelProvider.findById(providerId);
+    if (!provider) {
+      return null;
+    }
+
+    const modelIndex = provider.models.findIndex(model => model.code === modelCode);
+    if (modelIndex === -1) {
+      return null;
+    }
+
+    provider.models[modelIndex].isEnabled = isEnabled;
+    return await provider.save();
+  }
+
+  // 更新全局模型状态
+  async updateGlobalModelStatus(isEnabled: boolean): Promise<IModelProvider[]> {
+    // 更新所有供应商的全局状态
+    await ModelProvider.updateMany({}, { isActive: isEnabled });
+    
+    // 如果禁用全局状态，同时禁用所有模型
+    if (!isEnabled) {
+      await ModelProvider.updateMany(
+        {},
+        { $set: { "models.$[].isEnabled": false } }
+      );
+    }
+
+    return await this.getProviders();
+  }
 }
