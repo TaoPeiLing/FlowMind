@@ -1,30 +1,23 @@
 import { Router } from 'express';
-import { modelProviderController } from '../controllers/ModelProviderController';
+import { ModelProviderController } from '../controllers/modelProvider';
+import { adminAuth } from '../middleware/adminAuth';
 
 const router = Router();
 
-// 获取所有供应商
-router.get('/', modelProviderController.getProviders);
+// 基础 CRUD 操作
+router.get('/', ModelProviderController.getProviders);
+router.post('/', adminAuth, ModelProviderController.createProvider);
+router.put('/:id', adminAuth, ModelProviderController.updateProvider);
+router.delete('/:id', adminAuth, ModelProviderController.deleteProvider);
 
-// 获取单个供应商
-router.get('/:id', modelProviderController.getProviderById);
+// 供应商状态管理
+router.patch('/:id/status', adminAuth, ModelProviderController.updateStatus);
 
-// 创建供应商
-router.post('/', modelProviderController.createProvider);
+// 模型管理
+router.get('/:id/models', ModelProviderController.getModels);
+router.put('/:id/models', adminAuth, ModelProviderController.updateModels);
 
-// 更新供应商
-router.put('/:id', modelProviderController.updateProvider);
-
-// 删除供应商
-router.delete('/:id', modelProviderController.deleteProvider);
-
-// 测试连接
-router.post('/test-connection', modelProviderController.testConnection);
-
-// 更新模型状态
-router.patch('/:providerId/models/:modelCode', modelProviderController.updateModelStatus);
-
-// 更新全局模型状态
-router.patch('/global-status', modelProviderController.updateGlobalModelStatus);
+// 连接测试
+router.post('/:id/test', adminAuth, ModelProviderController.testConnection);
 
 export default router;
