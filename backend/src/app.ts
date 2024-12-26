@@ -6,8 +6,20 @@ import authRouter from './routes/auth';
 
 const app = express();
 
-// 开发环境下允许所有跨域请求
-app.use(cors());
+// CORS 配置
+app.use(cors({
+  origin: 'http://localhost:4000',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'Access-Control-Request-Method', 'Access-Control-Request-Headers'],
+  exposedHeaders: ['Access-Control-Allow-Origin'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
+
+// 处理 OPTIONS 预检请求
+app.options('*', cors());
+
 app.use(express.json());
 
 // 路由
