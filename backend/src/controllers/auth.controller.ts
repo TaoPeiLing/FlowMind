@@ -65,18 +65,21 @@ export const login = async (req: Request, res: Response) => {
     // 查找用户
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ message: '邮箱或密码不正确' });
+      return res.status(401).json({ message: '邮箱或密码错误' });
     }
 
     // 验证密码
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
-      return res.status(401).json({ message: '邮箱或密码不正确' });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: '邮箱或密码错误' });
     }
 
-    // 生成 JWT token
+    // 生成 JWT token，包含用户ID和角色
     const token = jwt.sign(
-      { userId: user._id },
+      { 
+        userId: user._id,
+        role: user.role  // 添加角色信息
+      },
       process.env.JWT_SECRET || 'your_jwt_secret_key',
       { expiresIn: '24h' }
     );
@@ -90,11 +93,10 @@ export const login = async (req: Request, res: Response) => {
           username: user.username,
           email: user.email,
           role: user.role
-        },
-      },
+        }
+      }
     });
   } catch (error) {
-    console.error('登录错误:', error);
-    res.status(500).json({ message: '登录失败，请稍后重试' });
+    res.status(500).json({ message: '登录失败', error });
   }
-}; 
+};

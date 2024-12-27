@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { ModelProviderController } from '../controllers/modelProvider';
-import { adminAuth } from '../middleware/adminAuth';
+import { adminAuth } from '../middleware/auth';  // 修正引用路径
 
 const router = Router();
 

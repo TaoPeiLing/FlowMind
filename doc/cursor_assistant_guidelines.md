@@ -35,6 +35,65 @@
 - [ ] 是否最小化了修改范围？
 - [ ] 是否符合项目的设计规范？
 
+## 映射配置示例
+
+### 请求参数映射示例
+
+在"配置请求参数在请求体中的位置"时，可以参考以下配置示例：
+
+```json
+{
+  "type": "input",
+  "mappings": [
+    {
+      "path": "prompt",
+      "transform": "{{userInput}}",
+      "required": true
+    },
+    {
+      "path": "temperature",
+      "default": 0.7,
+      "transform": "{{temperature}}"
+    },
+    {
+      "path": "top_p",
+      "default": 0.7,
+      "transform": "{{topP}}"
+    }
+  ]
+}
+```:
+
+### 响应结果映射示例
+
+在"配置返回结果在响应体中的位置"时，可以参考以下配置示例：
+
+```json
+{
+  "type": "output",
+  "mappings": [
+    {
+      "path": "response.data.choices[0].content",
+      "transform": "{{content}}",
+      "required": true
+    },
+    {
+      "path": "response.data.usage.total_tokens",
+      "transform": "{{usage.totalTokens}}"
+    }
+  ]
+}
+```:
+
+### 映射字段说明
+
+- `type`: 映射类型，可选值为 input（输入映射）或 output（输出映射）
+- `mappings`: 映射规则数组，包含具体的映射配置
+  - `path`: 映射路径，指定参数在请求/响应体中的位置
+  - `transform`: 转换表达式，使用 {{变量名}} 格式引用变量
+  - `default`: 默认值，当变量未提供时使用的值
+  - `required`: 是否必填，true 表示该字段必须提供
+
 ## 错误案例警示
 
 ### 1. 模型维护功能实现案例

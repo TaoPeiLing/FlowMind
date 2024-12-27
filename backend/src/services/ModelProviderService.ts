@@ -1,4 +1,4 @@
-import { ModelProvider, IModelProvider, IModelDefinition, PROVIDER_CONFIGS } from '../models/ModelProvider';
+import { ModelProvider, IModelProvider, IModelDefinition } from '../models/modelConfig/modelProvider';
 import { encrypt, decrypt } from '../utils/encryption';
 import axios from 'axios';
 
@@ -101,6 +101,11 @@ export class ModelProviderService {
       // 解析消息
       const testMessage = JSON.parse(params.message);
 
+      console.log('Sending test request:', {
+        url: params.baseUrl,
+        data: testMessage
+      });
+
       // 发送测试请求
       const response = await axios({
         method: 'POST',
@@ -155,7 +160,7 @@ export class ModelProviderService {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${params.apiKey}`
             },
-            body: params.message
+            body: testMessage  // 使用解析后的 testMessage 而不是原始字符串
           },
           responseDetails: error.response ? {
             status: error.response.status,

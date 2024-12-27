@@ -1,14 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
 // 扩展 Request 类型以包含用户信息
 declare global {
   namespace Express {
     interface Request {
       user?: {
-        id: string;
+        userId: string;
         role: string;
       };
     }
@@ -18,20 +18,43 @@ declare global {
 // 管理员认证中间件
 export const adminAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const authHeader = req.headers.authorization;
+    console.log('Auth Header:', {
+      header: authHeader,
+      path: req.path,
+      method: req.method
+    });
+
+    if (!authHeader) {
+      console.log('No Authorization Header');
+      return res.status(401).json({ error: 'No authorization header' });
+    }
+
+    const token = authHeader.split(' ')[1];
     if (!token) {
+      console.log('No Token in Authorization Header');
       return res.status(401).json({ error: 'No token provided' });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; role: string };
-    if (decoded.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string };
+      console.log('Token Decoded:', decoded);
 
-    req.user = decoded;
-    next();
+      if (decoded.role !== 'admin') {
+        console.log('Not Admin Role:', decoded.role);
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+
+      req.user = decoded;
+      console.log('Auth Success:', req.user);
+      next();
+    } catch (jwtError) {
+      console.log('JWT Verify Error:', jwtError);
+      return res.status(401).json({ error: 'Invalid token' });
+    }
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
+    console.error('Auth Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -42,11 +65,11 @@ export const authorize = (roles: string[]) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const hasRole = req.user.roles.some(role => roles.includes(role));
+    const hasRole = req.user.role === roles[0];
     if (!hasRole) {
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
 
     next();
   };
-}; 
+};
