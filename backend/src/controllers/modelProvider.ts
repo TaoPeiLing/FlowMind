@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { ModelProvider } from '../models/modelConfig/modelProvider';
 import { ModelProviderService } from '../services/ModelProviderService';
+import axios from 'axios';
 
 export class ModelProviderController {
   private static service = new ModelProviderService();
@@ -132,65 +133,213 @@ export class ModelProviderController {
   static async deleteProvider(req: Request, res: Response) {
     try {
       const { id } = req.params;
+      
+      // 先检查供应商是否存在
       const provider = await ModelProvider.findById(id);
       
       if (!provider) {
-        return res.status(404).json({ message: '供应商不存在' });
+        return res.status(404).json({ 
+          success: false,
+          message: '供应商不存在' 
+        });
       }
 
+      // 检查供应商是否处于启用状态
       if (provider.isActive) {
-        return res.status(400).json({ message: '无法删除启用状态的供应商' });
+        return res.status(400).json({ 
+          success: false,
+          message: '无法删除启用状态的供应商，请先禁用该供应商' 
+        });
       }
 
-      await provider.remove();
-      res.json({ message: '供应商已删除' });
-    } catch (error) {
-      res.status(500).json({ message: '删除供应商失败', error });
+      // 执行删除操作
+      const result = await ModelProvider.findByIdAndDelete(id);
+      
+      if (!result) {
+        return res.status(500).json({ 
+          success: false,
+          message: '删除供应商失败' 
+        });
+      }
+
+      res.json({ 
+        success: true,
+        message: '供应商已成功删除' 
+      });
+    } catch (error: any) {
+      console.error('删除供应商时出错:', error);
+      res.status(500).json({ 
+        success: false,
+        message: '删除供应商失败',
+        error: error.message || '未知错误'
+      });
     }
   }
 
-  // 测试连接
+  // 测试供应商连接
   static async testConnection(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const { prompt, model } = req.body;
-      
-      // 显式选择包含 apiKey 的完整信息
+      const { message } = req.body;
+
+      console.log('收到测试请求:', { providerId: id, message });
+
+      // 获取供应商信息，显式包含 apiKey
       const provider = await ModelProvider.findById(id).select('+apiKey');
-      
       if (!provider) {
         return res.status(404).json({ message: '供应商不存在' });
       }
 
-      // 构建测试消息
-      const testMessage = {
-        model: model || provider.models?.[0]?.code || 'glm-4',
-        messages: [
-          { role: 'user', content: prompt || '你好' }
-        ]
+      if (!provider.apiKey) {
+        return res.status(400).json({ message: '供应商API密钥未配置' });
+      }
+
+      // 构建请求头 - 使用 apiKey 而不是 baseUrl
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${provider.apiKey}`
       };
 
-      console.log('Testing connection with:', {
-        baseUrl: provider.baseUrl,
-        model: testMessage.model,
-        prompt: testMessage.messages[0].content
-      });
+      // 构建请求数据
+      const selectedModel = provider.models[0];
+      if (!selectedModel) {
+        return res.status(400).json({ message: '未配置可用的模型' });
+      }
 
-      // 使用 ModelProviderService 进行真实的连接测试
-      const result = await ModelProviderController.service.testConnection({
-        baseUrl: provider.baseUrl,
-        apiKey: provider.apiKey,
-        message: JSON.stringify(testMessage)
-      });
+      const requestData = {
+        model: selectedModel.code,
+        messages: [{
+          role: 'user',
+          content: message
+        }],
+        temperature: selectedModel.parameters?.temperature ?? 0.7,
+        top_p: selectedModel.parameters?.top_p ?? 1.0
+      };
 
-      res.json(result);
-    } catch (error) {
-      console.error('Test connection error:', error);
+      // 构建测试请求
+      const testRequest = {
+        url: provider.baseUrl,  // 使用 baseUrl 作为请求地址
+        method: 'POST',
+        headers,
+        data: requestData
+      };
+
+      // 记录发送到模型服务器的完整请求信息（包含实际的 API Key）
+      console.log('\n========= 发送到模型服务器的实际请求 =========');
+      console.log('URL:', testRequest.url);
+      console.log('Method:', testRequest.method);
+      console.log('Headers:', JSON.stringify(headers, null, 2));
+      console.log('Request Body:', JSON.stringify(requestData, null, 2));
+      console.log('===============================================\n');
+
+      try {
+        // 发送测试请求
+        const response = await axios(testRequest);
+
+        // 记录模型服务器的完整响应信息
+        console.log('\n========= 模型服务器的实际响应 =========');
+        console.log('Status:', response.status, response.statusText);
+        console.log('Response Headers:', JSON.stringify(response.headers, null, 2));
+        console.log('Response Body:', JSON.stringify(response.data, null, 2));
+        console.log('===========================================\n');
+
+        // 返回请求和响应数据，但在返回给客户端时隐藏敏感信息
+        return res.json({
+          modelRequest: {
+            url: testRequest.url,
+            method: testRequest.method,
+            headers: Object.entries(headers).reduce((acc, [key, value]) => {
+              acc[key] = key.toLowerCase() === 'authorization' 
+                ? 'Bearer ********' 
+                : value;
+              return acc;
+            }, {} as Record<string, string>),
+            data: requestData
+          },
+          modelResponse: {
+            status: response.status,
+            statusText: response.statusText,
+            headers: response.headers,
+            data: response.data
+          }
+        });
+      } catch (error: any) {
+        // 记录详细的错误信息，包括实际的请求信息
+        console.error('\n========= 模型服务器请求失败 =========');
+        console.error('Error:', error.message);
+        if (error.response) {
+          console.error('Response Status:', error.response.status);
+          console.error('Response Headers:', JSON.stringify(error.response.headers, null, 2));
+          console.error('Response Data:', JSON.stringify(error.response.data, null, 2));
+        }
+        console.error('Original Request:', {
+          url: testRequest.url,
+          method: testRequest.method,
+          headers: headers,  // 包含实际的 API Key
+          data: requestData
+        });
+        console.error('=======================================\n');
+
+        if (axios.isAxiosError(error) && error.response) {
+          // 返回错误信息给客户端时隐藏敏感信息
+          return res.status(error.response.status).json({
+            modelRequest: {
+              url: testRequest.url,
+              method: testRequest.method,
+              headers: Object.entries(headers).reduce((acc, [key, value]) => {
+                acc[key] = key.toLowerCase() === 'authorization'
+                  ? 'Bearer ********'
+                  : value;
+                return acc;
+              }, {} as Record<string, string>),
+              data: requestData
+            },
+            modelResponse: {
+              status: error.response.status,
+              statusText: error.response.statusText,
+              headers: error.response.headers,
+              data: error.response.data
+            },
+            message: '模型服务器返回错误'
+          });
+        } else if (error.request) {
+          return res.status(503).json({
+            modelRequest: {
+              url: testRequest.url,
+              method: testRequest.method,
+              headers: Object.entries(headers).reduce((acc, [key, value]) => {
+                acc[key] = key.toLowerCase() === 'authorization'
+                  ? 'Bearer ********'
+                  : value;
+                return acc;
+              }, {} as Record<string, string>),
+              data: requestData
+            },
+            message: '模型服务器无响应',
+            error: '请求超时或服务不可用'
+          });
+        }
+        return res.status(500).json({
+          modelRequest: {
+            url: testRequest.url,
+            method: testRequest.method,
+            headers: Object.entries(headers).reduce((acc, [key, value]) => {
+              acc[key] = key.toLowerCase() === 'authorization'
+                ? 'Bearer ********'
+                : value;
+              return acc;
+            }, {} as Record<string, string>),
+            data: requestData
+          },
+          message: '测试连接失败',
+          error: error.message || '未知错误'
+        });
+      }
+    } catch (error: any) {
+      console.error('测试连接过程出错:', error);
       res.status(500).json({ 
-        success: false,
         message: '测试连接失败',
-        error: error.message,
-        stack: error.stack
+        error: error.message || '未知错误'
       });
     }
   }

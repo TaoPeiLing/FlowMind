@@ -18,6 +18,6 @@ router.get('/:id/models', ModelProviderController.getModels);
 router.put('/:id/models', adminAuth, ModelProviderController.updateModels);
 
 // 连接测试
-router.post('/:id/test', adminAuth, ModelProviderController.testConnection);
+router.post('/:id/test', ModelProviderController.testConnection);
 
 export default router;
